@@ -1,473 +1,554 @@
-# 🖥️ Controle Remoto via Google Sheets
+################################################################################
+# CONTROLE REMOTO VIA GOOGLE SHEETS
+# Script que executa comandos no computador através de uma planilha do Google
+# Requisitos: oauth2client, gspread, keyboard
+# Instale com: pip install oauth2client gspread keyboard
+################################################################################
 
-Sistema que permite controlar seu computador remotamente através de uma planilha do Google Sheets. Digite comandos na planilha e veja-os serem executados automaticamente no seu PC!
+# IMPORTAÇÕES NECESSÁRIAS
+from oauth2client.service_account import ServiceAccountCredentials
+import gspread
+import os
+import time
+import keyboard
 
-## 📋 Índice
 
-- [Funcionalidades](#-funcionalidades)
-- [Requisitos](#-requisitos)
-- [Instalação e Configuração](#-instalação-e-configuração)
-  - [Passo 1: Ativar APIs do Google](#passo-1-ativar-apis-do-google)
-  - [Passo 2: Criar Service Account e Credenciais](#passo-2-criar-service-account-e-credenciais)
-  - [Passo 3: Criar e Configurar a Planilha](#passo-3-criar-e-configurar-a-planilha)
-  - [Passo 4: Instalar Dependências Python](#passo-4-instalar-dependências-python)
-  - [Passo 5: Configurar o Script](#passo-5-configurar-o-script)
-- [Como Usar](#-como-usar)
-- [Lista de Comandos](#-lista-de-comandos)
-- [Exemplos Práticos](#-exemplos-práticos)
-- [Solução de Problemas](#-solução-de-problemas)
-- [Avisos Importantes](#-avisos-importantes)
+# CONFIGURAÇÃO DE CREDENCIAIS DO GOOGLE SHEETS
 
----
+# IMPORTANTE: VOCÊ PRECISA FAZER ISSO ANTES DE EXECUTAR O SCRIPT:
+#
+# 1. Criar um arquivo JSON com credenciais do Google:
+#    - Acesse: https://console.cloud.google.com/
+#    - Crie um projeto
+#    - Ative a API do Google Sheets
+#    - Crie uma "Service Account" e gere a chave JSON
+#    - Salve como "credenciais.json" nesta pasta
+#
+# 2. Criar uma planilha Google chamada "comandos"
+#    - Compartilhe com o email da Service Account (encontrado no JSON)
+#    - A célula A1 será usada para ler os comandos
+#    - A coluna B mostrará a lista de comandos disponíveis (/help)
 
-## 🎯 Funcionalidades
+# Escopo de acesso à API do Google (não altere)
+scope = [
+    "https://spreadsheets.google.com/feeds",
+    "https://www.googleapis.com/auth/drive",
+]
 
-- ✅ Abrir programas e sites automaticamente
-- ✅ Controlar janelas (maximizar, minimizar, posicionar)
-- ✅ Executar atalhos de teclado personalizados
-- ✅ Digitar texto remotamente
-- ✅ Navegar na web (abrir abas, fechar, atualizar)
-- ✅ Desligar, reiniciar ou bloquear o PC
-- ✅ Feedback visual de sucesso/erro na planilha
-- ✅ Lista de comandos integrada no Google Sheets
-
----
-
-## 💻 Requisitos
-
-### Sistema Operacional
-- **Windows 10/11** (o script usa comandos específicos do Windows)
-
-### Software
-- **Python 3.7 ou superior** → [Download aqui](https://www.python.org/downloads/)
-- **Google Chrome** (para os comandos de navegação)
-- **Conexão com a Internet** (para acessar a API do Google Sheets)
-
----
-
-## 🚀 Instalação e Configuração
-
-### Passo 1: Ativar APIs do Google
-
-#### 1.1 - Acesse o Google Cloud Console
-1. Abra seu navegador e acesse: [https://console.cloud.google.com/](https://console.cloud.google.com/)
-2. Faça login com sua conta Google
-
-#### 1.2 - Criar um Novo Projeto
-1. No canto superior esquerdo, clique no **seletor de projetos**
-2. Clique em **"NOVO PROJETO"**
-3. Digite um nome para o projeto (ex: `Controle-Remoto-Sheets`)
-4. Clique em **"CRIAR"**
-5. Aguarde alguns segundos e selecione o projeto criado
-
-#### 1.3 - Ativar Google Sheets API
-1. No menu lateral, vá em: **APIs e serviços** → **Biblioteca**
-2. Na barra de pesquisa, digite: `Google Sheets API`
-3. Clique no resultado **Google Sheets API**
-4. Clique no botão **"ATIVAR"**
-5. Aguarde a ativação (alguns segundos)
-
-#### 1.4 - Ativar Google Drive API
-1. Volte para a **Biblioteca** de APIs
-2. Digite: `Google Drive API`
-3. Clique no resultado **Google Drive API**
-4. Clique no botão **"ATIVAR"**
-
----
-
-### Passo 2: Criar Service Account e Credenciais
-
-#### 2.1 - Acessar Credenciais
-1. No menu lateral, vá em: **APIs e serviços** → **Credenciais**
-2. Clique no botão **"+ CRIAR CREDENCIAIS"** (topo da página)
-3. Selecione **"Conta de serviço"**
-
-#### 2.2 - Configurar a Conta de Serviço
-1. **Nome da conta de serviço**: Digite `sheet-bot` (ou outro nome de sua preferência)
-2. **ID da conta de serviço**: Será gerado automaticamente
-3. **Descrição**: (opcional) Digite "Bot para controle remoto via Sheets"
-4. Clique em **"CRIAR E CONTINUAR"**
-
-#### 2.3 - Conceder Permissões (Opcional)
-1. Na seção "Conceder acesso a este projeto", você pode pular esta etapa
-2. Clique em **"CONTINUAR"**
-3. Clique em **"CONCLUÍDO"**
-
-#### 2.4 - Gerar a Chave JSON
-1. Na página de **Credenciais**, role até a seção **"Contas de serviço"**
-2. Clique no **email da conta de serviço** que você acabou de criar
-   - Formato: `sheet-bot@seu-projeto.iam.gserviceaccount.com`
-3. Vá na aba **"CHAVES"** (no topo)
-4. Clique em **"ADICIONAR CHAVE"** → **"Criar nova chave"**
-5. Selecione o formato **JSON**
-6. Clique em **"CRIAR"**
-
-**⚠️ IMPORTANTE:** Um arquivo JSON será baixado automaticamente. Este é o arquivo `credenciais.json`. Guarde-o com segurança!
-
-#### 2.5 - Copiar o Email da Service Account
-1. Volte para a página de **Credenciais**
-2. Na seção **Contas de serviço**, copie o email completo
-   - Exemplo: `sheet-bot@controle-remoto-sheets.iam.gserviceaccount.com`
-3. **Guarde este email** - você vai usá-lo no próximo passo!
-
----
-
-### Passo 3: Criar e Configurar a Planilha
-
-#### 3.1 - Criar Nova Planilha
-1. Acesse: [https://sheets.google.com/](https://sheets.google.com/)
-2. Clique em **"+"** para criar uma nova planilha em branco
-3. Renomeie a planilha para: **`comandos`** (exatamente este nome, sem espaços extras)
-
-#### 3.2 - Compartilhar com a Service Account
-1. Clique no botão **"Compartilhar"** (canto superior direito)
-2. No campo de email, cole o **email da service account** que você copiou anteriormente
-   - Exemplo: `sheet-bot@controle-remoto-sheets.iam.gserviceaccount.com`
-3. Mude a permissão para **"Editor"** (não pode ser "Visualizador")
-4. **DESMARQUE** a opção "Notificar pessoas"
-5. Clique em **"Compartilhar"**
-
-#### 3.3 - Entender a Estrutura da Planilha
-- **Célula A1**: Onde você vai digitar os comandos
-- **Coluna B**: Exibirá a lista de comandos disponíveis quando você usar `/help`
-- **Cor da célula A1**: 
-  - 🟢 **Verde** = Comando executado com sucesso
-  - 🔴 **Vermelho** = Erro no comando
-  - ⚪ **Branco** = Estado padrão
-
----
-
-### Passo 4: Instalar Dependências Python
-
-#### 4.1 - Verificar se o Python está instalado
-1. Abra o **Prompt de Comando** (Windows + R, digite `cmd`, Enter)
-2. Digite:
-```bash
-python --version
-```
-3. Se aparecer a versão (ex: `Python 3.11.5`), está instalado!
-4. Se não, baixe em: [https://www.python.org/downloads/](https://www.python.org/downloads/)
-
-#### 4.2 - Instalar as Bibliotecas Necessárias
-No Prompt de Comando, navegue até a pasta do projeto e execute:
-
-```bash
-pip install -r requirements.txt
-```
-
-Isso instalará automaticamente todas as dependências necessárias:
-- `oauth2client` - Autenticação com Google
-- `gspread` - Integração com Google Sheets
-- `keyboard` - Controle de teclado
-
-**Observação:** Se aparecer "pip não é reconhecido", tente usar:
-```bash
-python -m pip install -r requirements.txt
-```
-
----
-
-### Passo 5: Configurar o Script
-
-#### 5.1 - Organizar os Arquivos
-1. Crie uma pasta no seu computador (ex: `C:\ControleRemoto\`)
-2. Coloque nesta pasta:
-   - O arquivo `app.pyw` (o script Python)
-   - O arquivo `credenciais.json` (que você baixou do Google Cloud)
-
-#### 5.2 - Editar o Caminho das Credenciais
-1. Abra o arquivo `app.pyw` em um editor de texto (Bloco de Notas, VS Code, etc.)
-2. Localize a linha 40-42:
-```python
+# CUSTOMIZE AQUI: Caminho para arquivo de credenciais JSON
+# Altere para o caminho real do seu arquivo credenciais.json
 CAMINHO_CREDENCIAIS = (
-    r"C:\Users\Gabriel\Documents\projetosTeste\controleRemoto\credenciais.json"
+    r"C:\Users\Gabriel\Documents\GitHub\controle-remoto-pc-sheets\credenciais.json"
 )
-```
-3. Altere para o caminho **real** onde você salvou o arquivo `credenciais.json`
-   - Exemplo: `r"C:\ControleRemoto\credenciais.json"`
-4. **Mantenha o `r` antes das aspas!** (indica raw string)
-5. Salve o arquivo
 
-#### 5.3 - Executar o Script
-No Prompt de Comando, navegue até a pasta do projeto:
-```bash
-cd C:\ControleRemoto
-```
+cred = ServiceAccountCredentials.from_json_keyfile_name(CAMINHO_CREDENCIAIS, scope)
 
-Execute o script:
-```bash
-python app.pyw
-```
+client = gspread.authorize(cred)
+sheet = client.open("comandos").sheet1
 
-**✅ Se tudo estiver correto:**
-- O script iniciará sem erros
-- Abrirá uma janela do Python em segundo plano
-- Já está pronto para receber comandos!
 
----
+# FUNÇÕES DE INICIALIZAÇÃO (Abrir programas e sites)
 
-## 📖 Como Usar
 
-### Uso Básico
+def start_google():
+    """Abre o navegador Chrome na página do Google"""
+    os.system("start chrome https://google.com")
 
-1. **Abra a planilha Google Sheets** chamada "comandos"
-2. **Digite um comando na célula A1**
-3. **Pressione Enter**
-4. **Aguarde 3 segundos** (tempo de processamento)
-5. **Observe o feedback:**
-   - Célula A1 ficará **verde** se o comando foi executado
-   - Célula A1 ficará **vermelha** se houve erro
 
-### Ver Lista de Comandos
+def start_google_youtube():
+    """Abre o navegador Chrome no YouTube"""
+    os.system("start chrome https://youtube.com")
 
-1. Na célula A1, digite: `/help`
-2. Pressione Enter
-3. A **coluna B** será preenchida com todos os comandos disponíveis
 
-### Limpar a Lista de Comandos
+def start_google_chat():
+    """Abre o navegador Chrome no ChatGPT"""
+    os.system("start chrome https://chatgpt.com/")
 
-1. Na célula A1, digite: `/help off`
-2. A coluna B será limpa
 
----
+def start_google_asimov():
+    """Abre o navegador Chrome na plataforma Asimov Academy"""
+    os.system("start chrome https://hub.asimov.academy/?auth=direct")
 
-## 📝 Lista de Comandos
 
-### 🌐 Abrir Sites e Programas
+def start_vscode():
+    """Abre o VS Code (editor de código)"""
+    os.system("start code")
 
-| Comando | Descrição |
-|---------|-----------|
-| `start google` | Abre o Google no Chrome |
-| `start google youtube` | Abre o YouTube |
-| `start google chat` | Abre o ChatGPT |
-| `start google asimov` | Abre a Asimov Academy |
-| `start vscode` | Abre o Visual Studio Code |
 
-### 🪟 Gerenciar Janelas
+# FUNÇÕES DE LAYOUT (Gerenciar disposição de janelas)
 
-| Comando | Descrição |
-|---------|-----------|
-| `window half left` | Posiciona a janela ativa na metade esquerda (Win+Left) |
-| `window half right` | Posiciona a janela ativa na metade direita (Win+Right) |
-| `window full` | Maximiza a janela (Win+Up) |
-| `minimizar` | Minimiza a janela ativa (Win+Down) |
-| `trocar_janela` | Alterna entre janelas abertas (Alt+Tab) |
 
-### 🌐 Navegação Web
+def win_left():
+    """Posiciona a janela ativa na metade esquerda da tela (Win+Left)"""
+    keyboard.press_and_release("win+left")
 
-| Comando | Descrição |
-|---------|-----------|
-| `nova_guia` | Abre uma nova aba (Ctrl+T) |
-| `fechar_guia` | Fecha a aba atual (Ctrl+W) |
-| `pesquisar` | Ativa a barra de endereço (Ctrl+L) |
-| `voltar` | Volta para a página anterior (Alt+Left) |
-| `avancar` | Avança para a próxima página (Alt+Right) |
-| `atualizar` | Atualiza a página (F5) |
-| `tab` | Pressiona a tecla Tab |
-| `enter` | Pressiona Enter |
 
-### ❌ Fechar Programas
+def win_right():
+    """Posiciona a janela ativa na metade direita da tela (Win+Right)"""
+    keyboard.press_and_release("win+right")
 
-| Comando | Descrição |
-|---------|-----------|
-| `off google` | Fecha o Chrome completamente |
-| `off vscode` | Fecha o VS Code |
-| `off pc` | **Desliga o computador imediatamente** |
 
-### 🔧 Sistema
+def win_full():
+    """Maximiza a janela ativa em tela cheia (Win+Up)"""
+    keyboard.press_and_release("win+up")
 
-| Comando | Descrição |
-|---------|-----------|
-| `lock` | Bloqueia o computador (Win+L) |
-| `restart` | **Reinicia o computador imediatamente** |
 
-### ✍️ Comandos Especiais
+# FUNÇÕES DE FECHAMENTO (Encerrar programas)
 
-| Comando | Descrição | Exemplo |
-|---------|-----------|---------|
-| `write:texto` | Digita o texto especificado | `write:Olá, mundo!` |
-| `atalho:teclas` | Executa um atalho de teclado | `atalho:ctrl+c` |
-| `/help` | Mostra a lista de comandos na coluna B | `/help` |
-| `/help off` | Limpa a lista de comandos | `/help off` |
 
-### ⌨️ Atalhos Válidos para `atalho:`
+def off_chrome():
+    """Fecha o navegador Chrome e todos seus processos"""
+    os.system("taskkill /IM chrome.exe /F")
 
-Você pode combinar qualquer uma destas teclas:
 
-**Modificadores:** `ctrl`, `shift`, `alt`, `win`
+def off_computer():
+    """Desliga o computador imediatamente"""
+    os.system("shutdown /s /t 0")
 
-**Teclas de função:** `f1`, `f2`, `f3`, ... `f12`
 
-**Navegação:** `up`, `down`, `left`, `right`, `home`, `end`, `pageup`, `pagedown`
+def off_vscode():
+    """Fecha o VS Code e todos seus processos"""
+    os.system("taskkill /IM code.exe /F")
 
-**Especiais:** `enter`, `esc`, `tab`, `backspace`, `delete`, `space`
 
-**Letras:** `a` até `z`
+# FUNÇÕES DE SISTEMA (Controle do computador)
 
-**Números:** `0` até `9`
 
-**Exemplos:**
-- `atalho:ctrl+c` → Copiar
-- `atalho:ctrl+v` → Colar
-- `atalho:ctrl+z` → Desfazer
-- `atalho:alt+f4` → Fechar janela
-- `atalho:win+d` → Mostrar área de trabalho
+def lock_pc():
+    """Bloqueia o computador com a tela de login (Win+L)"""
+    keyboard.press_and_release("win+l")
 
----
 
-## 💡 Exemplos Práticos
+def restart_computer():
+    """Reinicia o computador imediatamente"""
+    os.system("shutdown /r /t 0")
 
-### Exemplo 1: Abrir YouTube e Maximizar
-```
-1. Digite na A1: start google youtube
-2. Aguarde a janela abrir
-3. Digite na A1: window full
-```
 
-### Exemplo 2: Pesquisar Algo no Google
-```
-1. Digite na A1: start google
-2. Digite na A1: pesquisar
-3. Digite na A1: write:receita de bolo
-4. Digite na A1: enter
-```
+def tab():
+    """Pressiona a tecla Tab para navegar entre elementos"""
+    keyboard.press_and_release("tab")
 
-### Exemplo 3: Copiar Texto
-```
-1. Digite na A1: atalho:ctrl+a
-2. Digite na A1: atalho:ctrl+c
-```
 
-### Exemplo 4: Workflow Completo
-```
-1. start google youtube          ← Abre YouTube
-2. window half left              ← Posiciona à esquerda
-3. start vscode                  ← Abre VS Code
-4. window half right             ← Posiciona à direita
-```
+def pesquisar():
+    """Ativa a barra de endereço no navegador (Ctrl+L)"""
+    keyboard.press_and_release("ctrl+l")
 
----
 
-## 🔧 Solução de Problemas
+def nova_guia():
+    """Abre uma nova aba no navegador (Ctrl+T)"""
+    keyboard.press_and_release("ctrl+t")
 
-### ❌ Erro: "No module named 'oauth2client'"
-**Solução:** Instale a biblioteca:
-```bash
-pip install oauth2client
-```
 
-### ❌ Erro: "gspread.exceptions.APIError: PERMISSION_DENIED"
-**Solução:** 
-1. Verifique se você compartilhou a planilha com o email da service account
-2. Confirme que a permissão é "Editor", não "Visualizador"
+def enter():
+    """Pressiona a tecla Enter/Return"""
+    keyboard.press_and_release("enter")
 
-### ❌ Erro: "FileNotFoundError: credenciais.json"
-**Solução:**
-1. Verifique se o caminho em `CAMINHO_CREDENCIAIS` está correto
-2. Use barras duplas `\\` ou barra simples `/` ou `r"caminho"`
-3. Exemplo correto: `r"C:\ControleRemoto\credenciais.json"`
 
-### ❌ Comandos não são executados
-**Solução:**
-1. Verifique se a célula A1 está sendo usada
-2. Aguarde 3 segundos após digitar o comando
-3. Confira se o nome da planilha é exatamente `comandos`
-4. Veja se o script Python está em execução
+def fechar_guia():
+    """Fecha a aba/janela atual do navegador (Ctrl+W)"""
+    keyboard.press_and_release("ctrl+w")
 
-### ❌ Célula fica vermelha constantemente
-**Solução:**
-1. Digite `/help` para ver a lista de comandos válidos
-2. Verifique a ortografia do comando
-3. Comandos são sensíveis a espaços extras
 
-### ❌ O Chrome não abre
-**Solução:**
-1. Verifique se o Google Chrome está instalado
-2. Se estiver usando outro navegador, edite as funções no código:
-   - Troque `start chrome` por `start firefox` ou `start msedge`
+def voltar():
+    """Volta para a página anterior no navegador (Alt+Left)"""
+    keyboard.press_and_release("alt+left")
 
----
 
-## ⚠️ Avisos Importantes
+def avancar():
+    """Avança para a próxima página no navegador (Alt+Right)"""
+    keyboard.press_and_release("alt+right")
 
-### Segurança
-- 🔒 **Nunca compartilhe o arquivo `credenciais.json`** com ninguém
-- 🔒 **Não suba este arquivo para repositórios públicos** (GitHub, etc.)
-- 🔒 Adicione `credenciais.json` ao `.gitignore` se usar Git
 
-### Uso Responsável
-- ⚠️ **Cuidado com os comandos de desligar/reiniciar** - eles são executados imediatamente
-- ⚠️ Teste primeiro em um ambiente seguro antes de usar em produção
-- ⚠️ Mantenha a planilha privada ou compartilhada apenas com pessoas de confiança
+def atualizar():
+    """Atualiza a página atual no navegador (F5)"""
+    keyboard.press_and_release("f5")
 
-### Limitações
-- 📌 Funciona apenas em **Windows**
-- 📌 Requer **conexão com a internet** constante
-- 📌 Delay de ~3 segundos entre comandos (configurável no código)
-- 📌 Chrome deve estar no PATH do sistema para os comandos `start google` funcionarem
 
-### .gitignore Recomendado
-Se você usar Git, crie um arquivo `.gitignore` com:
-```
-credenciais.json
-*.pyc
-__pycache__/
-```
+def minimizar():
+    """Minimiza a janela ativa (Win+Down)"""
+    keyboard.press_and_release("win+down")
 
----
 
-## 🎓 Personalização
+def trocar_janela():
+    """Alterna entre as janelas abertas (Alt+Tab)"""
+    keyboard.press_and_release("alt+tab")
 
-### Adicionar Novos Sites
-Edite o arquivo `app.pyw` e adicione novas funções:
 
-```python
-def start_netflix():
-    """Abre Netflix"""
-    os.system("start chrome https://netflix.com")
+# FUNÇÕES AUXILIARES
 
-# Adicione ao dicionário COMMANDS:
+
+def write(text, delay=0.05):
+    """
+    Digita um texto caractere por caractere no aplicativo ativo.
+
+    Args:
+        text (str): O texto a ser digitado
+        delay (float): Intervalo em segundos entre cada caractere (padrão: 0.05s)
+    """
+    for char in text:
+        keyboard.write(char)
+        time.sleep(delay)
+
+
+def atalho(keys):
+    """
+    Executa um atalho de teclado customizado.
+
+    Args:
+        keys (str): Combinação de teclas (ex: 'ctrl+c', 'alt+f4')
+
+    Returns:
+        bool: True se o atalho foi executado com sucesso, False caso contrário
+    """
+    parts = keys.split("+")
+    for p in parts:
+        if p not in VALID_KEYS:
+            return False
+    keyboard.press_and_release(keys)
+    return True
+
+
+def mostrar_help():
+    """
+    Gera e exibe uma lista completa de comandos disponíveis na coluna B da planilha.
+    Útil para referência rápida dos comandos que o sistema reconhece.
+    """
+    # Acumula lista de help
+    comandos_lista = []
+
+    # Cabeçalho principais
+    comandos_lista.append(["=== COMANDOS DISPONÍVEIS ==="])
+    comandos_lista.append([""])
+
+    # Seção: Comandos especiais (sintaxe personalizada)
+    comandos_lista.append(["COMANDOS ESPECIAIS:"])
+    comandos_lista.append(["write:texto - Digita o texto"])
+    comandos_lista.append(["atalho:ctrl+c - Executa atalho de teclado"])
+    comandos_lista.append(["/help - Mostra esta lista"])
+    comandos_lista.append(["/help off - Limpa esta lista"])
+    comandos_lista.append([""])
+
+    # Seção: Abrir programas
+    comandos_lista.append(["ABRIR PROGRAMAS:"])
+    comandos_lista.append(["start google - Abre Google"])
+    comandos_lista.append(["start google youtube - Abre YouTube"])
+    comandos_lista.append(["start google chat - Abre ChatGPT"])
+    comandos_lista.append(["start google asimov - Abre Asimov Academy"])
+    comandos_lista.append(["start vscode - Abre VS Code"])
+    comandos_lista.append([""])
+
+    # Seção: Gerenciar janelas
+    comandos_lista.append(["GERENCIAR JANELAS:"])
+    comandos_lista.append(["window half left - Janela metade esquerda"])
+    comandos_lista.append(["window half right - Janela metade direita"])
+    comandos_lista.append(["window full - Maximizar janela"])
+    comandos_lista.append(["minimizar - Minimizar janela"])
+    comandos_lista.append(["trocar_janela - Alt+Tab"])
+    comandos_lista.append([""])
+
+    # Seção: Navegação
+    comandos_lista.append(["NAVEGAÇÃO:"])
+    comandos_lista.append(["nova_guia - Ctrl+T"])
+    comandos_lista.append(["fechar_guia - Ctrl+W"])
+    comandos_lista.append(["pesquisar - Ctrl+L (barra endereço)"])
+    comandos_lista.append(["voltar - Alt+Left"])
+    comandos_lista.append(["avancar - Alt+Right"])
+    comandos_lista.append(["atualizar - F5"])
+    comandos_lista.append(["tab - Pressiona Tab"])
+    comandos_lista.append(["enter - Pressiona Enter"])
+    comandos_lista.append([""])
+
+    # Seção: Fechar/Desligar
+    comandos_lista.append(["FECHAR/DESLIGAR:"])
+    comandos_lista.append(["off google - Fecha Chrome"])
+    comandos_lista.append(["off vscode - Fecha VS Code"])
+    comandos_lista.append(["off pc - Desliga computador"])
+    comandos_lista.append([""])
+
+    # Seção: Sistema
+    comandos_lista.append(["SISTEMA:"])
+    comandos_lista.append(["lock - Bloqueia PC"])
+    comandos_lista.append(["restart - Reinicia computador"])
+    comandos_lista.append([""])
+
+    # Seção: Exemplos de atalhos customizados
+    comandos_lista.append(["EXEMPLOS DE ATALHOS:"])
+    comandos_lista.append(["atalho:ctrl+c - Copiar"])
+    comandos_lista.append(["atalho:ctrl+v - Colar"])
+    comandos_lista.append(["atalho:ctrl+z - Desfazer"])
+    comandos_lista.append(["atalho:alt+f4 - Fechar janela"])
+
+    # Atualiza a planilha com os comandos
+    try:
+        sheet.update(range_name="B1", values=comandos_lista)
+        return True
+    except:
+        return False
+
+
+def limpar_help():
+    """
+    Limpa a lista de comandos da planilha (remove o conteúdo da coluna B).
+    Chamada quando o usuário executa '/help off'.
+    """
+    try:
+        # Limpa as células de B1 até B50 (espaço suficiente para a lista de ajuda)
+        valores_vazios = [[""] for _ in range(50)]
+        sheet.update(range_name="B1:B50", values=valores_vazios)
+        return True
+    except:
+        return False
+
+
+# VALIDAÇÃO E ESTRUTURA DE COMANDOS
+
+
+# Conjunto de teclas válidas para atalhos customizados
+# Se o usuário tentar usar uma tecla fora desta lista, o atalho será rejeitado
+VALID_KEYS = {
+    "enter",
+    "esc",
+    "tab",
+    "backspace",
+    "delete",
+    "up",
+    "down",
+    "left",
+    "right",
+    "home",
+    "end",
+    "pagedown",
+    "pageup",
+    "ctrl",
+    "shift",
+    "alt",
+    "win",
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+    "f",
+    "g",
+    "h",
+    "i",
+    "j",
+    "k",
+    "l",
+    "m",
+    "n",
+    "o",
+    "p",
+    "q",
+    "r",
+    "s",
+    "t",
+    "u",
+    "v",
+    "w",
+    "x",
+    "y",
+    "z",
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "f1",
+    "f2",
+    "f3",
+    "f4",
+    "f5",
+    "f6",
+    "f7",
+    "f8",
+    "f9",
+    "f10",
+    "f11",
+    "f12",
+    "space",
+}
+
+
+# Dicionário hierárquico que mapeia os comandos para suas funções correspondentes
+# Estrutura: comando -> subcmando -> função
+# Exemplo: COMMANDS["start"]["google"]["_"] chama start_google()
 COMMANDS = {
     "start": {
-        "google": { ... },
-        "netflix": start_netflix,  # NOVO
-        ...
+        "google": {
+            "_": start_google,  # Comando padrão se nenhum subcomando for fornecido
+            "youtube": start_google_youtube,
+            "chat": start_google_chat,
+            "asimov": start_google_asimov,
+        },
+        "vscode": start_vscode,
     },
-    ...
+    "window": {
+        "half": {
+            "left": win_left,
+            "right": win_right,
+        },
+        "full": win_full,
+    },
+    "off": {
+        "google": off_chrome,
+        "pc": off_computer,
+        "vscode": off_vscode,
+    },
+    "lock": lock_pc,
+    "restart": restart_computer,
+    "tab": tab,
+    "pesquisar": pesquisar,
+    "nova_guia": nova_guia,
+    "enter": enter,
+    "fechar_guia": fechar_guia,
+    "voltar": voltar,
+    "avancar": avancar,
+    "atualizar": atualizar,
+    "minimizar": minimizar,
+    "trocar_janela": trocar_janela,
 }
-```
 
-Agora você pode usar: `start netflix`
 
-### Alterar Tempo de Verificação
-Na linha 551, altere o valor:
-```python
-time.sleep(3)  # Mude para 1, 2, 5, etc.
-```
+def executar(comando: str):
+    """
+    Processa e executa um comando recebido da planilha.
 
----
+    Suporta os seguintes formatos:
+    - Comandos simples: 'lock', 'restart', etc.
+    - Comandos com subcomandos: 'start google', 'window half left'
+    - Comando especial de escrita: 'write:seu texto aqui'
+    - Comando especial de atalho: 'atalho:ctrl+c'
+    - Comando de ajuda: '/help', '/help off'
 
-## 📜 Licença
+    Args:
+        comando (str): O comando a ser executado (lido da célula A1 da planilha)
 
-Este projeto é de código aberto. Use e modifique como desejar!
+    Returns:
+        bool: True se o comando foi executado com sucesso, False caso contrário
+    """
+    comando = comando.strip()
 
----
+    if not comando:
+        return False
 
-## 🤝 Contribuindo
+    # Comando para mostrar lista de ajuda
+    if comando.lower() == "/help":
+        return mostrar_help()
 
-Sugestões e melhorias são bem-vindas! 
+    # Comando para limpar a lista de ajuda
+    if comando.lower() == "/help off":
+        return limpar_help()
 
----
+    # Comando especial para digitar texto
+    # Formato: write:seu texto aqui
+    if comando.startswith("write:"):
+        texto = comando.split(":", 1)[1]
+        write(texto)
+        return True
 
-## 📞 Suporte
+    # Comando especial para executar atalhos de teclado
+    # Formato: atalho:ctrl+c (use underline no lugar de +: atalho:ctrl_c)
+    if comando.startswith("atalho:"):
+        keys = comando.split(":", 1)[1].lower()
+        keys = keys.replace("_", "+")  # Converte underline em + para atalhos
+        return atalho(keys)
 
-Se você encontrar problemas:
-1. Verifique a seção **Solução de Problemas**
-2. Confira se seguiu todos os passos corretamente
-3. Revise as permissões da planilha e das APIs
+    # Comandos estruturados (hierárquicos)
+    # Exemplo: "start google youtube" navega por COMMANDS["start"]["google"]["youtube"]
+    comando_parts = comando.lower().split()
+    current = COMMANDS
 
----
+    for part in comando_parts:
+        if isinstance(current, dict):
+            if part in current:
+                current = current[part]
+            elif "_" in current:
+                # Se a parte não encontrada, usa o comando padrão "_" se disponível
+                current = current["_"]
+                break
+            else:
+                return False
+        else:
+            break
 
-**Desenvolvido com ❤️ para automação e produtividade**
+    # Executa a função encontrada
+    if callable(current):
+        try:
+            current()
+            return True
+        except:
+            return False
 
-🎉 **Agora você pode controlar seu PC de qualquer lugar do mundo, apenas editando uma planilha!**
+    return False
+
+
+# FEEDBACK VISUAL (Cores na planilha indicam sucesso/falha)
+
+
+# Verde: comando executado com sucesso
+GREEN = {"red": 0.0, "green": 1.0, "blue": 0.0}
+# Vermelho: erro na execução do comando
+RED = {"red": 1.0, "green": 0.0, "blue": 0.0}
+# Branco: cor padrão (comando processado)
+WHITE = {"red": 1.0, "green": 1.0, "blue": 1.0}
+
+
+def set_color(color):
+    """
+    Muda a cor da célula A1 da planilha como feedback visual.
+
+    Args:
+        color (dict): Dicionário com as chaves 'red', 'green', 'blue'
+                     com valores entre 0.0 e 1.0
+    """
+    try:
+        sheet.format("A1", {"backgroundColor": color})
+    except:
+        pass
+
+
+def clear_cell():
+    """Limpa o conteúdo da célula A1 após processar o comando"""
+    try:
+        sheet.update(range_name="A1", values=[[""]])
+    except:
+        pass
+
+
+# LOOP PRINCIPAL
+
+# O script fica continuamente lendo a célula A1 da planilha.
+# Quando um comando é digitado lá, ele é executado imediatamente.
+# A célula muda de cor para indicar sucesso (verde) ou falha (vermelho).
+# Após 2 segundos, a cor volta ao branco (padrão).
+
+while True:
+    try:
+        # Lê o comando da célula A1 da planilha
+        comando = sheet.acell("A1").value
+
+        if comando:
+            # Tenta executar o comando
+            ok = executar(comando)
+
+            # Feedback visual: verde se sucesso, vermelho se falha
+            if ok:
+                set_color(GREEN)  # Comando executado com sucesso
+                time.sleep(2)
+                set_color(WHITE)
+            else:
+                set_color(RED)  # Erro ao executar comando
+                time.sleep(2)
+                set_color(WHITE)
+
+        # Aguarda 3 segundos antes de checar novamente por novos comandos
+        time.sleep(3)
+    except:
+        # Em caso de erro (ex: perda de conexão), aguarda 5 segundos antes de tentar novamente
+        time.sleep(5)
