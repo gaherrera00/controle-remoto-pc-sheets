@@ -167,21 +167,23 @@ python --version
 
 #### 4.2 - Instalar as Bibliotecas Necessárias
 
-No Prompt de Comando, execute cada comando abaixo:
+No Prompt de Comando, navegue até a pasta do projeto e execute:
 
 ```bash
-pip install oauth2client
+pip install -r requirements.txt
 ```
+
+Isso instalará automaticamente todas as dependências necessárias:
+
+- `oauth2client` - Autenticação com Google
+- `gspread` - Integração com Google Sheets
+- `keyboard` - Controle de teclado
+
+**Observação:** Se aparecer "pip não é reconhecido", tente usar:
 
 ```bash
-pip install gspread
+python -m pip install -r requirements.txt
 ```
-
-```bash
-pip install keyboard
-```
-
-**Observação:** Se aparecer "pip não é reconhecido", tente usar `python -m pip install` no lugar de apenas `pip install`.
 
 ---
 
@@ -500,25 +502,15 @@ time.sleep(3)  # Mude para 1, 2, 5, etc.
 
 ## 📜 Licença
 
-Este projeto é desenvolvido e mantido por **Gabriel Herrera Demarchi**.
-
-| Canal        | Link                                                                                        |
-| :----------- | :------------------------------------------------------------------------------------------ |
-| **LinkedIn** | [gabriel-herrera-demarchi](https://www.linkedin.com/in/gabriel-herrera-demarchi-532844338/) |
-| **GitHub**   | [gaherrera00](https://github.com/gaherrera00)                                               |
-
-> Este projeto é de código aberto. Sinta-se à vontade para usar, modificar e distribuir conforme desejar.
+Este projeto é de código aberto. Use e modifique como desejar!
 
 ---
 
 ## 🤝 Contribuindo
 
-Sugestões e melhorias são sempre bem-vindas! Se você deseja colaborar, sinta-se à vontade para:
+Sugestões e melhorias são bem-vindas!
 
-1.  **Abrir uma Issue** para relatar problemas ou sugerir novas funcionalidades.
-2.  **Enviar um Pull Request** com melhorias no código ou na documentação.
-
-Agradecemos o seu interesse em tornar este projeto ainda melhor!
+---
 
 ## 📞 Suporte
 
@@ -529,5 +521,7 @@ Se você encontrar problemas:
 3. Revise as permissões da planilha e das APIs
 
 ---
+
+**Desenvolvido com ❤️ para automação e produtividade**
 
 🎉 **Agora você pode controlar seu PC de qualquer lugar do mundo, apenas editando uma planilha!**
