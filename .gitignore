@@ -1,0 +1,33 @@
+# Arquivos de credenciais sensíveis
+credenciais.json
+*.json
+
+# Arquivos Python compilados
+*.py[cod]
+*$py.class
+__pycache__/
+
+# Ambientes virtuais
+venv/
+env/
+ENV/
+.venv
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Arquivos temporários
+*.tmp
+*.temp
